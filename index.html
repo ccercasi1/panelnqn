@@ -43,7 +43,7 @@ svg { display: block; }
   display: flex; flex-direction: column; justify-content: space-between; gap: 32px;
 }
 #idle header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-.clock-big { font-weight: 500; font-size: clamp(96px, 17vw, 220px); line-height: 0.9; letter-spacing: -0.04em; cursor: pointer; }
+.clock-big { font-weight: 500; font-size: clamp(88px, 15vw, 190px); line-height: 0.9; letter-spacing: -0.04em; cursor: pointer; }
 .date-big { font-size: clamp(16px, 2vw, 22px); padding-left: 6px; margin-top: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: #FFFFFF; font-size: 15px; color: #3B4048; }
 .dot { width: 9px; height: 9px; border-radius: 50%; background: #1E9E5A; flex-shrink: 0; }
@@ -85,6 +85,26 @@ aside.side { display: flex; flex-direction: column; gap: 18px; }
 .card .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .card .num { font-size: 52px; font-weight: 500; }
 
+/* ---------- Pronóstico, avisos, dólar ---------- */
+.chips { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.alert { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-radius: 16px; background: #FFF1D6; color: #5A3B00; font-size: 17px; font-weight: 500; }
+body.playing .alert { background: rgba(255, 190, 90, 0.14); color: #FFD08A; font-size: 15px; padding: 12px 16px; border-radius: 14px; }
+.fc { display: flex; justify-content: space-between; align-items: stretch; gap: 12px; flex-wrap: wrap; background: #FFFFFF; border-radius: 22px; padding: 18px 24px; }
+.fc-item { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 14px; min-width: 64px; }
+.fc-item .t { font-family: 'Space Grotesk', Inter, sans-serif; font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.fc-item .p { font-size: 12px; color: #2F6FB0; min-height: 15px; }
+.fc-item.day .h { font-weight: 600; }
+.fc-sep { width: 1px; background: #D5D9DE; align-self: stretch; }
+.mini-days { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 14px; }
+.mini-days > div { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+/* ---------- Modo noche ---------- */
+body.night { background-color: #000000; background-image: none; color: #C9CDD3; }
+body.night .muted { color: #9AA0A8; }
+body.night #idle, body.night #play { filter: brightness(0.35); }
+body.night #idle .tiles, body.night .fc, body.night .alert, body.night .chips { display: none !important; }
+body.night #idle { justify-content: center; }
+
 #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #15171A; color: #F2F3F5; padding: 12px 18px; border-radius: 12px; font-size: 14px; max-width: calc(100vw - 32px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 10; }
 body.playing #toast { background: #F2F3F5; color: #15171A; }
 
@@ -105,8 +125,14 @@ body.playing #toast { background: #F2F3F5; color: #15171A; }
       <div class="clock-big display" data-clock title="Tocá para pantalla completa">--:--</div>
       <div class="date-big muted" data-date></div>
     </div>
-    <div class="chip sala hidden"><span class="dot" data-sala-dot></span><span data-sala-status>Sensor</span></div>
+    <div class="chips">
+      <div class="chip hidden" data-dolar-chip><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span data-dolar></span></div>
+      <div class="chip sala hidden"><span class="dot" data-sala-dot></span><span data-sala-status>Sensor</span></div>
+    </div>
   </header>
+
+  <div class="alert hidden" data-alert role="alert"></div>
+  <div class="fc hidden" id="fc-idle" aria-label="Pronóstico"></div>
 
   <div class="tiles">
     <div class="tile sala hidden">
@@ -186,7 +212,10 @@ body.playing #toast { background: #F2F3F5; color: #15171A; }
       <div class="label muted" style="font-size:13px" data-city-name>Neuquén</div>
       <div class="row"><span class="num display" data-w-temp>--°</span><span style="font-size:15px;color:#B8BDC4" data-w-desc></span></div>
       <div class="muted" style="font-size:14px" data-w-extra></div>
+      <div class="mini-days" data-days-mini></div>
     </div>
+    <div class="alert hidden" data-alert role="alert"></div>
+    <div class="muted" style="font-size:14px" data-dolar-line></div>
   </aside>
 </section>
 
@@ -202,7 +231,12 @@ const CONFIG = {
   THINGSPEAK: { canal: '', campoTemp: 1, campoHum: 2 },
   SPOTIFY_POLL_MS: 5000,
   CLIMA_CADA_MIN: 10,
-  SENSOR_VIEJO_MIN: 5
+  SENSOR_VIEJO_MIN: 5,
+  // Modo noche: pantalla atenuada y solo reloj entre estas horas. Tocar la pantalla la despierta 1 minuto.
+  NOCHE: { desde: 23, hasta: 7 },
+  // Avisos de clima: ráfagas desde X km/h y tormenta en las próximas N horas; helada en las próximas 24 h.
+  ALERTAS: { rafagaKmh: 50, heladaC: 0, horas: 12 },
+  DOLAR_CADA_MIN: 15
 };
 /* ================================================= */
 
@@ -227,6 +261,7 @@ function tickClock() {
   const d = new Date();
   setText('[data-clock]', d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }));
   setText('[data-date]', d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }));
+  if (typeof applyNight === 'function') applyNight();
 }
 $$('[data-clock]').forEach(el => el.addEventListener('click', () => {
   if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
@@ -235,22 +270,146 @@ $$('[data-clock]').forEach(el => el.addEventListener('click', () => {
 
 /* ---------- Clima (Open-Meteo) ---------- */
 const WMO = {0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla',51:'Llovizna',53:'Llovizna',55:'Llovizna intensa',56:'Llovizna helada',57:'Llovizna helada',61:'Lluvia débil',63:'Lluvia',65:'Lluvia fuerte',66:'Lluvia helada',67:'Lluvia helada',71:'Nieve débil',73:'Nieve',75:'Nieve fuerte',77:'Granizo fino',80:'Chaparrones',81:'Chaparrones',82:'Chaparrones fuertes',85:'Nevadas',86:'Nevadas',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta con granizo'};
+const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const SVG_OPEN = '<svg width="SZ" height="SZ" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+const ICONS = {
+  sol: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.1-17.1 1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  nube: '<path d="M17.5 19H7a5 5 0 1 1 1.6-9.7A6 6 0 0 1 20 11.5a3.75 3.75 0 0 1-2.5 7.5z"/>',
+  lluvia: '<path d="M16 13.5a4 4 0 0 0-1-7.9 6 6 0 0 0-11 3.4A3.5 3.5 0 0 0 5 15.5"/><path d="M8 19v2M12 17v2M16 19v2"/>',
+  nieve: '<path d="M16 13.5a4 4 0 0 0-1-7.9 6 6 0 0 0-11 3.4A3.5 3.5 0 0 0 5 15.5"/><path d="M8 18h.01M12 20h.01M16 18h.01M12 16h.01"/>',
+  tormenta: '<path d="M16 13.5a4 4 0 0 0-1-7.9 6 6 0 0 0-11 3.4A3.5 3.5 0 0 0 5 15.5"/><path d="m13 12-3 5h4l-3 5"/>',
+  niebla: '<path d="M4 9h16M3 13h18M5 17h14"/>',
+  aviso: '<path d="m10.3 3.9-8.1 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8.1-14a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>'
+};
+function icon(name, size) { return SVG_OPEN.replace(/SZ/g, size || 22) + ICONS[name] + '</svg>'; }
+function iconFor(code) {
+  if (code >= 95) return 'tormenta';
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'nieve';
+  if (code >= 51) return 'lluvia';
+  if (code === 45 || code === 48) return 'niebla';
+  if (code >= 2) return 'nube';
+  return 'sol';
+}
+const hourOf = (iso) => String(Number(iso.slice(11, 13))) + ' h';
+
+function renderForecast(j) {
+  const H = j.hourly, D = j.daily;
+  let i0 = H.time.findIndex(t => t > j.current.time);
+  if (i0 < 0) i0 = 0;
+  let html = '';
+  for (let k = 0; k < 6; k++) {
+    const i = i0 + k * 2;
+    if (i >= H.time.length) break;
+    const p = H.precipitation_probability[i];
+    html += '<div class="fc-item"><span class="h muted">' + hourOf(H.time[i]) + '</span>' + icon(iconFor(H.weather_code[i])) +
+      '<span class="t">' + Math.round(H.temperature_2m[i]) + '°</span><span class="p">' + (p >= 30 ? p + ' %' : '') + '</span></div>';
+  }
+  html += '<div class="fc-sep" aria-hidden="true"></div>';
+  let mini = '';
+  for (let d = 1; d < Math.min(4, D.time.length); d++) {
+    const name = DIAS[new Date(D.time[d] + 'T12:00:00').getDay()];
+    const p = D.precipitation_probability_max[d];
+    const mx = Math.round(D.temperature_2m_max[d]), mn = Math.round(D.temperature_2m_min[d]);
+    html += '<div class="fc-item day"><span class="h">' + name + '</span>' + icon(iconFor(D.weather_code[d])) +
+      '<span class="t">' + mx + '° <span class="muted" style="font-size:16px">' + mn + '°</span></span><span class="p">' + (p >= 30 ? p + ' %' : '') + '</span></div>';
+    mini += '<div><span class="muted">' + name + '</span>' + icon(iconFor(D.weather_code[d]), 18) + '<span>' + mx + '° / ' + mn + '°</span></div>';
+  }
+  const fc = document.getElementById('fc-idle');
+  fc.innerHTML = html; fc.classList.remove('hidden');
+  $$('[data-days-mini]').forEach(el => { el.innerHTML = mini; });
+}
+
+function renderAlerts(j) {
+  const H = j.hourly, A = CONFIG.ALERTAS;
+  let i0 = H.time.findIndex(t => t > j.current.time) - 1;
+  if (i0 < 0) i0 = 0;
+  const out = [];
+  // Viento
+  let gMax = j.current.wind_gusts_10m || 0, gIdx = -1;
+  for (let i = i0; i < Math.min(H.time.length, i0 + A.horas); i++) {
+    if (H.wind_gusts_10m[i] > gMax) { gMax = H.wind_gusts_10m[i]; gIdx = i; }
+  }
+  if (gMax >= A.rafagaKmh) {
+    out.push('Viento fuerte: ráfagas de hasta ' + Math.round(gMax) + ' km/h' + (gIdx >= 0 ? ' (' + hourOf(H.time[gIdx]) + ')' : ' ahora'));
+  }
+  // Tormenta
+  for (let i = i0; i < Math.min(H.time.length, i0 + A.horas); i++) {
+    if (H.weather_code[i] >= 95) { out.push('Tormenta prevista cerca de las ' + hourOf(H.time[i])); break; }
+  }
+  // Helada
+  let tMin = Infinity, tIdx = -1;
+  for (let i = i0; i < Math.min(H.time.length, i0 + 24); i++) {
+    if (H.temperature_2m[i] < tMin) { tMin = H.temperature_2m[i]; tIdx = i; }
+  }
+  if (tIdx >= 0 && tMin <= A.heladaC) out.push('Helada: mínima de ' + Math.round(tMin) + '° cerca de las ' + hourOf(H.time[tIdx]));
+
+  $$('[data-alert]').forEach(el => {
+    if (!out.length) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+    el.innerHTML = icon('aviso', 20) + '<span></span>';
+    el.querySelector('span').textContent = out.slice(0, 2).join(' · ');
+    el.classList.remove('hidden');
+  });
+}
+
 async function loadWeather() {
   const c = CONFIG.CIUDAD;
   setText('[data-city-name]', c.nombre);
   try {
     const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + c.lat + '&longitude=' + c.lon +
-      '&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1';
+      '&current=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m' +
+      '&hourly=temperature_2m,weather_code,precipitation_probability,wind_gusts_10m' +
+      '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max' +
+      '&timezone=auto&forecast_days=4';
     const r = await fetch(url);
     if (!r.ok) throw new Error(r.status);
     const j = await r.json();
     setText('[data-w-temp]', Math.round(j.current.temperature_2m) + '°');
     setText('[data-w-desc]', WMO[j.current.weather_code] || '');
     setText('[data-w-extra]', 'Máx ' + Math.round(j.daily.temperature_2m_max[0]) + '° · Mín ' + Math.round(j.daily.temperature_2m_min[0]) + '° · Viento ' + Math.round(j.current.wind_speed_10m) + ' km/h');
+    try { renderForecast(j); } catch (e) {}
+    try { renderAlerts(j); } catch (e) {}
   } catch (e) {
     setText('[data-w-extra]', 'Sin datos del clima por ahora');
   }
 }
+
+/* ---------- Dólar (DolarApi) ---------- */
+async function loadDolar() {
+  const chip = document.querySelector('[data-dolar-chip]');
+  try {
+    const r = await fetch('https://dolarapi.com/v1/dolares');
+    if (!r.ok) throw new Error(r.status);
+    const arr = await r.json();
+    const parts = [['oficial', 'Oficial'], ['bolsa', 'MEP'], ['blue', 'Blue']].map(([casa, label]) => {
+      const x = arr.find(d => d.casa === casa);
+      return x && x.venta ? label + ' $' + Math.round(x.venta).toLocaleString('es-AR') : null;
+    }).filter(Boolean);
+    if (!parts.length) throw new Error('sin datos');
+    const txt = parts.join(' · ');
+    setText('[data-dolar]', txt);
+    setText('[data-dolar-line]', 'Dólar ' + txt);
+    chip.classList.remove('hidden');
+  } catch (e) {
+    chip.classList.add('hidden');
+    setText('[data-dolar-line]', '');
+  }
+}
+
+/* ---------- Modo noche ---------- */
+let awakeUntil = 0;
+function isNight() {
+  const h = new Date().getHours(), n = CONFIG.NOCHE;
+  return n.desde > n.hasta ? (h >= n.desde || h < n.hasta) : (h >= n.desde && h < n.hasta);
+}
+function applyNight() {
+  document.body.classList.toggle('night', isNight() && Date.now() > awakeUntil);
+}
+document.addEventListener('click', (e) => {
+  if (!document.body.classList.contains('night')) return;
+  e.stopPropagation(); e.preventDefault();
+  awakeUntil = Date.now() + 60000;
+  applyNight();
+}, true);
 
 /* ---------- Sensor de la sala (ThingSpeak) ---------- */
 async function loadSala() {
@@ -476,6 +635,7 @@ tickClock(); setInterval(tickClock, 1000);
 setInterval(tickProgress, 500);
 loadWeather(); setInterval(loadWeather, CONFIG.CLIMA_CADA_MIN * 60000);
 loadSala(); if (CONFIG.THINGSPEAK.canal) setInterval(loadSala, 60000);
+loadDolar(); setInterval(loadDolar, CONFIG.DOLAR_CADA_MIN * 60000);
 startSpotify();
 keepAwake();
 </script>
