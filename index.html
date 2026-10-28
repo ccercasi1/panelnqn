@@ -562,19 +562,32 @@ function extractColor(url) {
       const c = document.createElement('canvas'); c.width = c.height = 24;
       const ctx = c.getContext('2d'); ctx.drawImage(im, 0, 0, 24, 24);
       const d = ctx.getImageData(0, 0, 24, 24).data;
-      let r = 0, g = 0, b = 0, w = 0;
+      // Agrupa por tono (12 grupos de 30°) y se queda con el grupo dominante, para no mezclar colores opuestos.
+      const bins = [];
+      for (let k = 0; k < 13; k++) bins.push({ r: 0, g: 0, b: 0, w: 0 });
       for (let i = 0; i < d.length; i += 4) {
-        const mx = Math.max(d[i], d[i+1], d[i+2]), mn = Math.min(d[i], d[i+1], d[i+2]);
+        const R = d[i], G = d[i+1], B = d[i+2];
+        const mx = Math.max(R, G, B), mn = Math.min(R, G, B);
         const sat = (mx - mn) / 255, lum = (mx + mn) / 510;
-        const wt = sat * sat * (lum > 0.15 && lum < 0.9 ? 1 : 0.1) + 0.005;
-        r += d[i] * wt; g += d[i+1] * wt; b += d[i+2] * wt; w += wt;
+        let bin = 12; // grises
+        if (sat > 0.12) {
+          let h;
+          if (mx === R) h = ((G - B) / (mx - mn)) % 6; else if (mx === G) h = (B - R) / (mx - mn) + 2; else h = (R - G) / (mx - mn) + 4;
+          h = (h * 60 + 360) % 360;
+          bin = Math.floor(h / 30);
+        }
+        const wt = (bin === 12 ? 0.02 : sat * sat) * (lum > 0.15 && lum < 0.9 ? 1 : 0.2);
+        const o = bins[bin]; o.r += R * wt; o.g += G * wt; o.b += B * wt; o.w += wt;
       }
-      r /= w; g /= w; b /= w;
+      let best = bins[12];
+      for (let k = 0; k < 12; k++) if (bins[k].w > best.w) best = bins[k];
+      if (!best.w) return;
+      let r = best.r / best.w, g = best.g / best.w, b = best.b / best.w;
       const mx = Math.max(r, g, b);
       if (mx < 150) { const k = 150 / Math.max(mx, 1); r *= k; g *= k; b *= k; }
       r = Math.min(255, Math.round(r)); g = Math.min(255, Math.round(g)); b = Math.min(255, Math.round(b));
       document.documentElement.style.setProperty('--tint', 'rgb(' + r + ',' + g + ',' + b + ')');
-      document.documentElement.style.setProperty('--tint-soft', 'rgba(' + r + ',' + g + ',' + b + ',0.35)');
+      document.documentElement.style.setProperty('--tint-soft', 'rgba(' + r + ',' + g + ',' + b + ',0.5)');
     } catch (e) { /* imagen sin CORS: queda el color por defecto */ }
   };
   im.src = url;
