@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E9ECEF">
+<title>Panel NQN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --tint: rgb(224, 122, 63);
+  --tint-soft: rgba(224, 122, 63, 0.35);
+  --pad: clamp(16px, 4.5vw, 64px);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: Inter, system-ui, sans-serif;
+  background-color: #E9ECEF;
+  color: #15171A;
+  transition: background-color 0.8s ease, color 0.8s ease;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+body.playing {
+  background-color: #0E0F12;
+  background-image: radial-gradient(circle at 22% 45%, var(--tint-soft) 0%, rgba(14,15,18,0) 58%);
+  color: #F2F3F5;
+}
+.display { font-family: 'Space Grotesk', Inter, sans-serif; font-variant-numeric: tabular-nums; }
+.muted { color: #545A63; }
+body.playing .muted { color: #9AA0A8; }
+.hidden { display: none !important; }
+button { font: inherit; }
+svg { display: block; }
+
+/* ---------- Modo reposo (reloj primero) ---------- */
+#idle {
+  min-height: 100vh; min-height: 100dvh;
+  padding: var(--pad);
+  display: flex; flex-direction: column; justify-content: space-between; gap: 32px;
+}
+#idle header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.clock-big { font-weight: 500; font-size: clamp(96px, 17vw, 220px); line-height: 0.9; letter-spacing: -0.04em; cursor: pointer; }
+.date-big { font-size: clamp(16px, 2vw, 22px); padding-left: 6px; margin-top: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: #FFFFFF; font-size: 15px; color: #3B4048; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: #1E9E5A; flex-shrink: 0; }
+.dot.off { background: #9AA0A8; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; }
+.tile { border-radius: 22px; padding: 28px; background: #FFFFFF; display: flex; flex-direction: column; justify-content: space-between; gap: 16px; min-height: 240px; }
+.label { display: flex; align-items: center; gap: 8px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
+.big-num { font-size: clamp(64px, 7vw, 84px); font-weight: 500; line-height: 1; }
+.tile.music { background: #15171A; color: #F2F3F5; }
+.tile.music .muted { color: #A3A9B1; }
+.mini-row { display: flex; gap: 18px; align-items: center; min-width: 0; }
+.mini-cover { width: 96px; height: 96px; border-radius: 10px; object-fit: cover; background: #2A2D33; flex-shrink: 0; }
+.mini-title { font-family: 'Space Grotesk', Inter, sans-serif; font-size: 22px; font-weight: 600; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.btn-connect { align-self: flex-start; min-height: 48px; padding: 0 22px; border-radius: 999px; border: none; background: #1DB954; color: #0E0F12; font-weight: 600; cursor: pointer; }
+
+/* ---------- Modo música (carátula primero) ---------- */
+#play {
+  min-height: 100vh; min-height: 100dvh;
+  padding: var(--pad);
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 56px; align-items: center;
+}
+.now { display: flex; align-items: center; gap: 44px; min-width: 0; }
+.cover { width: clamp(220px, 30vw, 380px); aspect-ratio: 1; border-radius: 14px; object-fit: cover; background: #1A1C21; box-shadow: 0 30px 80px rgba(0,0,0,0.55); flex-shrink: 0; }
+.info { display: flex; flex-direction: column; gap: 12px; min-width: 0; flex-grow: 1; }
+.device { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.title { margin: 0; font-family: 'Space Grotesk', Inter, sans-serif; font-weight: 600; font-size: clamp(30px, 3.6vw, 48px); line-height: 1.08; letter-spacing: -0.01em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.artist { margin: 0; font-size: clamp(17px, 1.7vw, 21px); color: #B8BDC4; }
+.bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.12); overflow: hidden; }
+.bar > div { height: 100%; width: 0; border-radius: 3px; background: var(--tint); transition: width 0.5s linear; }
+.times { display: flex; justify-content: space-between; font-size: 13px; font-variant-numeric: tabular-nums; margin-top: 8px; }
+.controls { display: flex; align-items: center; gap: 18px; margin-top: 8px; }
+.ctl { width: 56px; height: 56px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.04); color: #F2F3F5; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.ctl.main { width: 72px; height: 72px; border: none; background: #F2F3F5; color: #0E0F12; }
+.tile .ctl { width: 48px; height: 48px; }
+.tile .ctl.main { width: 52px; height: 52px; }
+aside.side { display: flex; flex-direction: column; gap: 18px; }
+.clock-small { font-weight: 500; font-size: 88px; line-height: 1; letter-spacing: -0.02em; cursor: pointer; }
+.card { border-radius: 18px; padding: 22px 24px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 6px; }
+.card .row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.card .num { font-size: 52px; font-weight: 500; }
+
+#toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #15171A; color: #F2F3F5; padding: 12px 18px; border-radius: 12px; font-size: 14px; max-width: calc(100vw - 32px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 10; }
+body.playing #toast { background: #F2F3F5; color: #15171A; }
+
+@media (max-width: 900px), (orientation: portrait) {
+  #play { grid-template-columns: minmax(0, 1fr); gap: 32px; align-content: center; }
+  .now { flex-direction: column; align-items: stretch; gap: 24px; }
+  .cover { width: min(100%, 360px); align-self: center; }
+  .clock-small { font-size: 56px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Reposo: reloj primero ===== -->
+<section id="idle" aria-label="Panel en reposo">
+  <header>
+    <div>
+      <div class="clock-big display" data-clock title="Tocá para pantalla completa">--:--</div>
+      <div class="date-big muted" data-date></div>
+    </div>
+    <div class="chip sala hidden"><span class="dot" data-sala-dot></span><span data-sala-status>Sensor</span></div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile sala hidden">
+      <div class="label muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z"/></svg><span>Sala</span></div>
+      <div class="big-num display" data-sala-temp>--°</div>
+      <div class="muted" data-sala-hum>Humedad -- %</div>
+    </div>
+
+    <div class="tile">
+      <div class="label muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.1-17.1 1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span data-city-name>Neuquén</span></div>
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+        <span class="big-num display" data-w-temp>--°</span>
+        <span style="font-size:18px;color:#3B4048" data-w-desc></span>
+      </div>
+      <div class="muted" data-w-extra></div>
+    </div>
+
+    <div class="tile music">
+      <div id="mini-empty" style="display:flex;flex-direction:column;gap:16px;justify-content:space-between;height:100%">
+        <div class="label muted"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Música</span></div>
+        <p id="mini-msg" style="margin:0;font-size:20px;line-height:1.3">Nada sonando</p>
+        <button id="btn-connect" class="btn-connect hidden" type="button">Conectar Spotify</button>
+      </div>
+      <div id="mini-track" class="hidden" style="display:flex;flex-direction:column;gap:16px;justify-content:space-between;height:100%">
+        <div class="mini-row">
+          <img class="mini-cover" data-cover alt="Carátula">
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+            <div class="muted" style="font-size:13px" data-device-line>En pausa</div>
+            <div class="mini-title" data-title></div>
+            <div class="muted" style="font-size:15px" data-artist></div>
+          </div>
+        </div>
+        <div class="bar" style="height:5px"><div data-bar></div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="muted" style="font-size:13px;font-variant-numeric:tabular-nums" data-times-mini>0:00 / 0:00</span>
+          <div style="display:flex;gap:10px">
+            <button class="ctl" type="button" data-act="prev" aria-label="Anterior"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8v16zM5 19V5"/></svg></button>
+            <button class="ctl main" type="button" data-act="toggle" aria-label="Reproducir o pausar"><span data-toggle-icon></span></button>
+            <button class="ctl" type="button" data-act="next" aria-label="Siguiente"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 4 10 8-10 8V4zM19 5v14"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Música: carátula primero ===== -->
+<section id="play" class="hidden" aria-label="Reproduciendo">
+  <div class="now">
+    <img class="cover" data-cover alt="Carátula">
+    <div class="info">
+      <div class="device muted"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg><span data-device-line>Sonando</span></div>
+      <h1 class="title" data-title></h1>
+      <p class="artist" data-artist></p>
+      <div style="margin-top:18px">
+        <div class="bar"><div data-bar></div></div>
+        <div class="times muted"><span data-pos>0:00</span><span data-dur>0:00</span></div>
+      </div>
+      <div class="controls">
+        <button class="ctl" type="button" data-act="prev" aria-label="Anterior"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20 9 12l10-8v16zM5 19V5"/></svg></button>
+        <button class="ctl main" type="button" data-act="toggle" aria-label="Reproducir o pausar"><span data-toggle-icon></span></button>
+        <button class="ctl" type="button" data-act="next" aria-label="Siguiente"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 4 10 8-10 8V4zM19 5v14"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="side">
+    <div>
+      <div class="clock-small display" data-clock title="Tocá para pantalla completa">--:--</div>
+      <div class="muted" style="font-size:17px;margin-top:4px" data-date></div>
+    </div>
+    <div class="card sala hidden">
+      <div class="label muted" style="font-size:13px">Sala</div>
+      <div class="row"><span class="num display" data-sala-temp>--°</span><span style="font-size:15px;color:#B8BDC4" data-sala-hum></span></div>
+    </div>
+    <div class="card">
+      <div class="label muted" style="font-size:13px" data-city-name>Neuquén</div>
+      <div class="row"><span class="num display" data-w-temp>--°</span><span style="font-size:15px;color:#B8BDC4" data-w-desc></span></div>
+      <div class="muted" style="font-size:14px" data-w-extra></div>
+    </div>
+  </aside>
+</section>
+
+<div id="toast" class="hidden" role="status"></div>
+
+<script>
+/* ================= CONFIGURACIÓN ================= */
+const CONFIG = {
+  // Client ID de la app creada en developer.spotify.com (no es secreto).
+  SPOTIFY_CLIENT_ID: '',
+  CIUDAD: { nombre: 'Neuquén', lat: -38.9516, lon: -68.0591 },
+  // Canal público de ThingSpeak con temperatura y humedad de la sala. Vacío = la tarjeta no aparece.
+  THINGSPEAK: { canal: '', campoTemp: 1, campoHum: 2 },
+  SPOTIFY_POLL_MS: 5000,
+  CLIMA_CADA_MIN: 10,
+  SENSOR_VIEJO_MIN: 5
+};
+/* ================================================= */
+
+const $$ = (sel) => document.querySelectorAll(sel);
+const setText = (sel, txt) => $$(sel).forEach(el => { el.textContent = txt; });
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+let toastTimer;
+function toast(msg, ms = 4000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), ms);
+}
+const num1 = (n) => Number(n).toFixed(1).replace('.', ',');
+const fmt = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+/* ---------- Reloj ---------- */
+function tickClock() {
+  const d = new Date();
+  setText('[data-clock]', d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }));
+  setText('[data-date]', d.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }));
+}
+$$('[data-clock]').forEach(el => el.addEventListener('click', () => {
+  if (!document.fullscreenElement && document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(() => {});
+  else if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+}));
+
+/* ---------- Clima (Open-Meteo) ---------- */
+const WMO = {0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',45:'Niebla',48:'Niebla',51:'Llovizna',53:'Llovizna',55:'Llovizna intensa',56:'Llovizna helada',57:'Llovizna helada',61:'Lluvia débil',63:'Lluvia',65:'Lluvia fuerte',66:'Lluvia helada',67:'Lluvia helada',71:'Nieve débil',73:'Nieve',75:'Nieve fuerte',77:'Granizo fino',80:'Chaparrones',81:'Chaparrones',82:'Chaparrones fuertes',85:'Nevadas',86:'Nevadas',95:'Tormenta',96:'Tormenta con granizo',99:'Tormenta con granizo'};
+async function loadWeather() {
+  const c = CONFIG.CIUDAD;
+  setText('[data-city-name]', c.nombre);
+  try {
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + c.lat + '&longitude=' + c.lon +
+      '&current=temperature_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    setText('[data-w-temp]', Math.round(j.current.temperature_2m) + '°');
+    setText('[data-w-desc]', WMO[j.current.weather_code] || '');
+    setText('[data-w-extra]', 'Máx ' + Math.round(j.daily.temperature_2m_max[0]) + '° · Mín ' + Math.round(j.daily.temperature_2m_min[0]) + '° · Viento ' + Math.round(j.current.wind_speed_10m) + ' km/h');
+  } catch (e) {
+    setText('[data-w-extra]', 'Sin datos del clima por ahora');
+  }
+}
+
+/* ---------- Sensor de la sala (ThingSpeak) ---------- */
+async function loadSala() {
+  const ts = CONFIG.THINGSPEAK;
+  if (!ts.canal) return;
+  $$('.sala').forEach(el => el.classList.remove('hidden'));
+  try {
+    const r = await fetch('https://api.thingspeak.com/channels/' + encodeURIComponent(ts.canal) + '/feeds/last.json');
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    const t = j['field' + ts.campoTemp], h = j['field' + ts.campoHum];
+    if (t != null) setText('[data-sala-temp]', num1(t) + '°');
+    if (h != null) setText('[data-sala-hum]', 'Humedad ' + Math.round(h) + ' %');
+    const ageMin = (Date.now() - new Date(j.created_at).getTime()) / 60000;
+    const ok = ageMin <= CONFIG.SENSOR_VIEJO_MIN;
+    $$('[data-sala-dot]').forEach(d => d.classList.toggle('off', !ok));
+    setText('[data-sala-status]', ok ? 'Sensor en línea' : 'Sin datos del sensor');
+  } catch (e) {
+    $$('[data-sala-dot]').forEach(d => d.classList.add('off'));
+    setText('[data-sala-status]', 'Sin datos del sensor');
+  }
+}
+
+/* ---------- Spotify (OAuth PKCE, sin servidor) ---------- */
+const REDIRECT = location.origin + location.pathname.replace(/index\.html$/, '');
+const SCOPES = 'user-read-currently-playing user-read-playback-state user-modify-playback-state';
+const TOKEN_URL = 'https://accounts.spotify.com/api/token';
+const ICON_PLAY = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>';
+const ICON_PAUSE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';
+
+const sp = { item: null, playing: false, progress: 0, duration: 0, stamp: 0, img: null, busy: false };
+
+function b64url(bytes) { return btoa(String.fromCharCode.apply(null, new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function randomString(n) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const v = crypto.getRandomValues(new Uint8Array(n));
+  return Array.from(v, x => chars[x % chars.length]).join('');
+}
+async function login() {
+  const verifier = randomString(64);
+  store.set('sp_verifier', verifier);
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+  location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+    response_type: 'code', client_id: CONFIG.SPOTIFY_CLIENT_ID, scope: SCOPES,
+    code_challenge_method: 'S256', code_challenge: challenge, redirect_uri: REDIRECT
+  });
+}
+function saveTokens(j) {
+  store.set('sp_access', j.access_token);
+  if (j.refresh_token) store.set('sp_refresh', j.refresh_token);
+  store.set('sp_exp', String(Date.now() + (j.expires_in - 60) * 1000));
+}
+function clearTokens() { ['sp_access', 'sp_refresh', 'sp_exp'].forEach(k => store.del(k)); }
+
+async function handleRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('error')) { toast('Spotify no autorizó el acceso: ' + p.get('error')); history.replaceState(null, '', REDIRECT); return; }
+  const code = p.get('code');
+  if (!code) return;
+  history.replaceState(null, '', REDIRECT);
+  try {
+    const r = await fetch(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT, client_id: CONFIG.SPOTIFY_CLIENT_ID, code_verifier: store.get('sp_verifier') || '' }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error_description || j.error || r.status);
+    saveTokens(j);
+    toast('Spotify conectado');
+  } catch (e) { toast('No se pudo conectar Spotify: ' + e.message, 8000); }
+}
+async function refreshToken() {
+  const rt = store.get('sp_refresh');
+  if (!rt) return null;
+  try {
+    const r = await fetch(TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: rt, client_id: CONFIG.SPOTIFY_CLIENT_ID }) });
+    if (!r.ok) { if (r.status === 400 || r.status === 401) { clearTokens(); showMusicMsg('La conexión con Spotify venció', true); } return null; }
+    const j = await r.json();
+    saveTokens(j);
+    return j.access_token;
+  } catch (e) { return null; }
+}
+async function getToken() {
+  if (!store.get('sp_access')) return null;
+  if (Date.now() < Number(store.get('sp_exp') || 0)) return store.get('sp_access');
+  return refreshToken();
+}
+async function api(method, path) {
+  let t = await getToken();
+  if (!t) return null;
+  let r = await fetch('https://api.spotify.com/v1' + path, { method, headers: { Authorization: 'Bearer ' + t } });
+  if (r.status === 401) {
+    store.set('sp_exp', '0');
+    t = await refreshToken();
+    if (!t) return null;
+    r = await fetch('https://api.spotify.com/v1' + path, { method, headers: { Authorization: 'Bearer ' + t } });
+  }
+  return r;
+}
+
+function showMusicMsg(msg, withButton) {
+  document.getElementById('mini-empty').classList.remove('hidden');
+  document.getElementById('mini-track').classList.add('hidden');
+  document.getElementById('mini-msg').textContent = msg;
+  document.getElementById('btn-connect').classList.toggle('hidden', !withButton);
+}
+function setMode(playing) {
+  document.body.classList.toggle('playing', playing);
+  document.getElementById('play').classList.toggle('hidden', !playing);
+  document.getElementById('idle').classList.toggle('hidden', playing);
+  document.querySelector('meta[name=theme-color]').setAttribute('content', playing ? '#0E0F12' : '#E9ECEF');
+}
+
+function extractColor(url) {
+  const im = new Image();
+  im.crossOrigin = 'anonymous';
+  im.onload = () => {
+    try {
+      const c = document.createElement('canvas'); c.width = c.height = 24;
+      const ctx = c.getContext('2d'); ctx.drawImage(im, 0, 0, 24, 24);
+      const d = ctx.getImageData(0, 0, 24, 24).data;
+      let r = 0, g = 0, b = 0, w = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        const mx = Math.max(d[i], d[i+1], d[i+2]), mn = Math.min(d[i], d[i+1], d[i+2]);
+        const sat = (mx - mn) / 255, lum = (mx + mn) / 510;
+        const wt = sat * sat * (lum > 0.15 && lum < 0.9 ? 1 : 0.1) + 0.005;
+        r += d[i] * wt; g += d[i+1] * wt; b += d[i+2] * wt; w += wt;
+      }
+      r /= w; g /= w; b /= w;
+      const mx = Math.max(r, g, b);
+      if (mx < 150) { const k = 150 / Math.max(mx, 1); r *= k; g *= k; b *= k; }
+      r = Math.min(255, Math.round(r)); g = Math.min(255, Math.round(g)); b = Math.min(255, Math.round(b));
+      document.documentElement.style.setProperty('--tint', 'rgb(' + r + ',' + g + ',' + b + ')');
+      document.documentElement.style.setProperty('--tint-soft', 'rgba(' + r + ',' + g + ',' + b + ',0.35)');
+    } catch (e) { /* imagen sin CORS: queda el color por defecto */ }
+  };
+  im.src = url;
+}
+
+function render(st) {
+  if (!st || !st.item) {
+    sp.item = null; sp.playing = false;
+    setMode(false); showMusicMsg('Nada sonando', false);
+    return;
+  }
+  const it = st.item;
+  const artist = it.artists ? it.artists.map(a => a.name).join(', ') : (it.show ? it.show.name : '');
+  const album = it.album ? it.album.name : '';
+  const imgs = (it.album && it.album.images) || it.images || [];
+  const img = imgs.length ? imgs[0].url : '';
+  sp.item = it; sp.playing = !!st.is_playing; sp.progress = st.progress_ms || 0; sp.duration = it.duration_ms || 0; sp.stamp = Date.now();
+
+  setText('[data-title]', it.name || '');
+  $$('.artist[data-artist]').forEach(el => { el.textContent = album ? artist + ' · ' + album : artist; });
+  $$('.mini-row [data-artist]').forEach(el => { el.textContent = artist; });
+  const dev = st.device && st.device.name ? st.device.name : 'Spotify';
+  setText('[data-device-line]', (sp.playing ? 'Sonando en ' : 'En pausa · ') + dev);
+  if (img && img !== sp.img) { sp.img = img; $$('[data-cover]').forEach(el => { el.src = img; }); extractColor(img); }
+  $$('[data-toggle-icon]').forEach(el => { el.innerHTML = sp.playing ? ICON_PAUSE : ICON_PLAY; });
+  document.getElementById('mini-empty').classList.add('hidden');
+  document.getElementById('mini-track').classList.remove('hidden');
+  setMode(sp.playing);
+  tickProgress();
+}
+function tickProgress() {
+  if (!sp.item) return;
+  let pos = sp.progress + (sp.playing ? Date.now() - sp.stamp : 0);
+  if (sp.duration) pos = Math.min(pos, sp.duration);
+  const pct = sp.duration ? (pos / sp.duration * 100) : 0;
+  $$('[data-bar]').forEach(el => { el.style.width = pct + '%'; });
+  setText('[data-pos]', fmt(pos)); setText('[data-dur]', fmt(sp.duration));
+  setText('[data-times-mini]', fmt(pos) + ' / ' + fmt(sp.duration));
+}
+
+async function pollOnce() {
+  const r = await api('GET', '/me/player?additional_types=episode');
+  if (!r) return 0;
+  if (r.status === 204) { render(null); return 0; }
+  if (r.status === 429) return (Number(r.headers.get('Retry-After')) || 30) * 1000;
+  if (r.ok) render(await r.json());
+  return 0;
+}
+async function pollLoop() {
+  let wait = 0;
+  try { wait = await pollOnce(); } catch (e) {}
+  let delay = Math.max(CONFIG.SPOTIFY_POLL_MS, wait);
+  if (document.hidden) delay = Math.max(delay, 30000);
+  setTimeout(pollLoop, delay);
+}
+
+async function control(act) {
+  if (sp.busy) return;
+  sp.busy = true;
+  try {
+    let r;
+    if (act === 'toggle') r = await api('PUT', sp.playing ? '/me/player/pause' : '/me/player/play');
+    else if (act === 'next') r = await api('POST', '/me/player/next');
+    else if (act === 'prev') r = await api('POST', '/me/player/previous');
+    if (r && !r.ok && r.status !== 204) toast('Spotify no aceptó la orden (' + r.status + ')');
+    setTimeout(() => pollOnce().catch(() => {}), 700);
+  } catch (e) { toast('No se pudo enviar la orden'); }
+  sp.busy = false;
+}
+$$('[data-act]').forEach(b => b.addEventListener('click', () => control(b.dataset.act)));
+document.getElementById('btn-connect').addEventListener('click', login);
+
+async function startSpotify() {
+  if (!CONFIG.SPOTIFY_CLIENT_ID) { showMusicMsg('Falta configurar Spotify (Client ID)', false); return; }
+  await handleRedirect();
+  if (!store.get('sp_refresh') && !store.get('sp_access')) { showMusicMsg('Conectá tu cuenta para ver lo que suena', true); return; }
+  pollLoop();
+}
+
+/* ---------- Pantalla siempre encendida ---------- */
+let wakeLock = null;
+async function keepAwake() {
+  try { if ('wakeLock' in navigator && !document.hidden && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {}
+}
+document.addEventListener('visibilitychange', keepAwake);
+document.addEventListener('click', keepAwake);
+
+/* ---------- Arranque ---------- */
+tickClock(); setInterval(tickClock, 1000);
+setInterval(tickProgress, 500);
+loadWeather(); setInterval(loadWeather, CONFIG.CLIMA_CADA_MIN * 60000);
+loadSala(); if (CONFIG.THINGSPEAK.canal) setInterval(loadSala, 60000);
+startSpotify();
+keepAwake();
+</script>
+</body>
+</html>
